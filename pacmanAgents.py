@@ -92,7 +92,6 @@ class HillClimberAgent(Agent):
     # GetAction Function: Called with every frame
     def getAction(self, state):
         seq=randomSeq(state)
-
         return Directions.STOP
 
 
@@ -202,7 +201,7 @@ class MCTSAgent(Agent):
             else:
                 return state
 
-        def rollout( node, state):
+        def rollout(rootState, node, state):
             #do rollout and back propagate here
             assert( not state is None)
             seq=randomSeq(state)
@@ -215,7 +214,8 @@ class MCTSAgent(Agent):
                 pass
             except UseUp:
                 rethrow = True
-            score = scoreEvaluation(state)
+            #score = scoreEvaluation(state)
+            score = normalizedScoreEvaluation(rootState, state)
             backPropagate(node,score)
             if rethrow:
                 raise UseUp
@@ -231,6 +231,7 @@ class MCTSAgent(Agent):
 
         def span(root,state):
             cur = root;
+            rootState = state
             #keep invariant: state correspond to node
             try:
                 while True:
@@ -242,7 +243,7 @@ class MCTSAgent(Agent):
                             state = move( state,action)
                             children[action] = createNode(cur,action)
                             cur = children[action]
-                            rollout(cur, state)
+                            rollout(rootState, cur, state)
                             return
                     choice=Directions.STOP
                     score = -100000.0
@@ -253,7 +254,7 @@ class MCTSAgent(Agent):
                     state = move(state,choice) #can't swap
                     cur = children[choice]              #these two lines
             except (Win,Lose):
-                rollout(cur,state)
+                rollout(rootState, cur,state)
 
         while True:
             try:
