@@ -73,19 +73,9 @@ class GreedyAgent(Agent):
         # return random action from the list of the best actions
         return random.choice(bestActions)
 
-class HillClimberAgent(Agent):
-    # Initialization Function: Called one time when the game starts
-    def registerInitialState(self, state):
-        return;
-
-    # GetAction Function: Called with every frame
-    def getAction(self, state):
-        # TODO: write Hill Climber Algorithm instead of returning Directions.STOP
-        # get all legal actions for pacman
-        possible = state.getAllPossibleActions();
-        for i in range(0,len(self.actionList)):
-            self.actionList[i] = possible[random.randint(0,len(possible)-1)];
-        return Directions.STOP
+class Win: pass
+class Lose:pass
+class UseUp:pass
 
 def randomSeq(state):
     ret = []
@@ -93,6 +83,18 @@ def randomSeq(state):
     for i in range(5):
         ret.append( possible[random.randint(0,len(possible)-1)]);
     return ret;
+
+class HillClimberAgent(Agent):
+    # Initialization Function: Called one time when the game starts
+    def registerInitialState(self, state):
+        return;
+
+    # GetAction Function: Called with every frame
+    def getAction(self, state):
+        seq=randomSeq(state)
+
+        return Directions.STOP
+
 
 class GeneticAgent(Agent):
     # Initialization Function: Called one time when the game starts
@@ -175,7 +177,11 @@ class MCTSAgent(Agent):
         # node is a tuple (under the hood python list) 
         # [ tot_score, tot_visit, parent, action, [list of children] ]
         def createNode(parent,action):
-            return [0,0,parent,action, [None,None,None,None] ]
+            return [0,0,parent,action, 
+                    {Directions.SOUTH:None,
+                        Directions.NORTH:None,
+                        Directions.EAST:None,
+                        Directions.WEST:None} ]
 
         root = createNode(None,Directions.STOP)
 
@@ -184,9 +190,6 @@ class MCTSAgent(Agent):
             assert (root[1]!=0)
             return node[0]/node[1] + 2 * math.sqrt(math.log(root[1]) / node[1])
 
-        class Win: pass
-        class Lose:pass
-        class UseUp:pass
 
         def move(state,action):
             if state.isWin():
@@ -233,25 +236,24 @@ class MCTSAgent(Agent):
                 while True:
                     assert (not cur is None)
                     children = cur[4]
-                    for i in range (4):
-                        if children[i] is None:
-                            state = move( state,possible[i])
-                            children[i] = createNode(cur,possible[i])
-                            cur = children[i]
+                    legal = state.getLegalPacmanActions();
+                    for action in legal:
+                        if children[action] is None:
+                            state = move( state,action)
+                            children[action] = createNode(cur,action)
+                            cur = children[action]
                             rollout(cur, state)
                             return
-                    choice=-1
+                    choice=Directions.STOP
                     score = -100000.0
-                    for i in range (4):
-                        ucb = UCB( children[i] )
+                    for action in legal:
+                        ucb = UCB( children[action] )
                         if  ucb> score:
-                            score,choice = ucb, i
-                    state = move(state,possible[choice]) #can't swap
+                            score,choice = ucb, action
+                    state = move(state,choice) #can't swap
                     cur = children[choice]              #these two lines
             except (Win,Lose):
                 rollout(cur,state)
-
-        possible = state.getAllPossibleActions();
 
         while True:
             try:
@@ -260,11 +262,9 @@ class MCTSAgent(Agent):
                 break
 
         children = root[4]
-        assert(not children is None)
-        idx=-1
+        idx=Directions.STOP
         visit_cnt = -1
-        for i in range(len(children)):
-            if not children[i] is None and children[i][1]>visit_cnt:
-                idx,visit_cnt = i, children[i][1]
-        assert(idx!=-1)
+        for k in children :
+            if not children[k] is None and children[k][1]>visit_cnt:
+                idx,visit_cnt = k, children[k][1]
         return children[idx][3]
