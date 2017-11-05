@@ -244,9 +244,8 @@ class MCTSAgent(Agent):
                 for i in range (4):
                     if children[i] is None:
                         children[i] = createNode(cur,possible[i])
-                        assert(not possible[i] is None)
-                        state = state.generatePacmanSuccessor(possible[i])
-                        status,state = getStatus(state)
+                        status,state = getStatus(state, possible[i])
+                        if status `jjjjjjjjjj
                         return rollout(children[i], state)
                 choice=-1
                 score = -100000.0
@@ -266,16 +265,7 @@ class MCTSAgent(Agent):
                 else :
                     print "terminal"
                     score = scoreEvaluation(state)
-                    if state.isWin():
-                        backPropagate(cur,score)
-                        return WIN
-                    elif state is None:
-                        backPropagate(cur,score)
-                        return USE_UP
-                    elif state.isLose():
-                        backPropagate(cur,score)
-                        return LOSE
-                    assert (False)
+                    backPropagate(cur,score)
 
         possible = state.getAllPossibleActions();
 
