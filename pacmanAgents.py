@@ -162,7 +162,6 @@ class GeneticAgent(Agent):
             for i in population:
                 if randf()>0.1:
                     continue
-                #print i
                 i[randint(0,self.SEQ_LEN-1)] = possible[randint(0,len(possible)-1)]
 
         return Directions.STOP
@@ -171,47 +170,53 @@ class MCTSAgent(Agent):
     # Initialization Function: Called one time when the game starts
     def registerInitialState(self, state):
         return;
-
-
     # GetAction Function: Called with every frame
     def getAction(self, state):
-        WIN=0
-        LOSE=1
-        MORE=2
-        USE_UP=3
         # node is a tuple (under the hood python list) 
         # [ tot_score, tot_visit, parent, action, [list of children] ]
-
         def createNode(parent,action):
             return [0,0,parent,action, [None,None,None,None] ]
 
         root = createNode(None,Directions.STOP)
+
         def UCB (node):
             assert(not node is None)
             assert (root[1]!=0)
             return node[0]/node[1] + 2 * math.sqrt(math.log(root[1]) / node[1])
 
+        class Win: pass
+        class Lose:pass
+        class UseUp:pass
+
+        def move(state,action):
+            if state.isWin():
+                raise Win()
+            if state.isLose():
+                raise Lose()
+            state = state.generatePacmanSuccessor(action)
+            if state is None :
+                raise UseUp()
+            else:
+                return state
+
         def rollout( node, state):
             #do rollout and back propagate here
             assert( not state is None)
             seq=randomSeq(state)
-            status = MORE
-            for action in seq:
-                old=state
-                state = state.generatePacmanSuccessor(action)
-                if state is None:
-                    state = old
-                    status = USE_UP
-                    break
-                elif state.isWin():
-                    status = WIN
-                    break
-                elif state.isLose():
-                    status=LOSE
-                    break
+            rethrow = False
+            try:
+                for action in seq:
+                    old=state
+                state = move(state,action)
+            except (Lose, Win):
+                pass
+            except UseUp:
+                rethrow = True
             score = scoreEvaluation(state)
             backPropagate(node,score)
-            return status
+            if rethrow:
+                raise UseUp
+            #let UseUp() go up, don't handle it
 
         def backPropagate(node, score):
             while True:
@@ -222,64 +227,44 @@ class MCTSAgent(Agent):
                 node = node[2]
 
         def span(root,state):
-            print "span"
             cur = root;
-            status = MORE
-            def move(state,action):
-                oldstate = state
-                state = state.generatePacmanSuccessor(possible[i])
-                if state is None:
-                    return USE_UP,oldstate
-                elif state.isWin():
-                    return WIN,state
-                elif state.isLose():
-                    return LOSE,state
-                else:
-                    return MORE,state
-            while True:
-                print "while loop"
-                assert (not cur is None)
-                children = cur[4]
-                oldstate = state
-                for i in range (4):
-                    if children[i] is None:
-                        children[i] = createNode(cur,possible[i])
-                        status,state = getStatus(state, possible[i])
-                        if status `jjjjjjjjjj
-                        return rollout(children[i], state)
-                choice=-1
-                score = -100000.0
-                print "check terminal"
-                if not terminal:
+            #keep invariant: state correspond to node
+            try:
+                while True:
+                    assert (not cur is None)
+                    children = cur[4]
+                    for i in range (4):
+                        if children[i] is None:
+                            state = move( state,possible[i])
+                            children[i] = createNode(cur,possible[i])
+                            cur = children[i]
+                            rollout(cur, state)
+                            return
+                    choice=-1
+                    score = -100000.0
                     for i in range (4):
                         ucb = UCB( children[i] )
                         if  ucb> score:
                             score,choice = ucb, i
-                    state = state.generatePacmanSuccessor(possible[choice])
-                    if state is None:
-                        terminal = True
-                        state = oldstate
-                    elif state.isWin() or state.isLose() :
-                        terminal = True
-                    cur = children[choice]
-                else :
-                    print "terminal"
-                    score = scoreEvaluation(state)
-                    backPropagate(cur,score)
+                    state = move(state,possible[choice]) #can't swap
+                    cur = children[choice]              #these two lines
+            except (Win,Lose):
+                rollout(cur,state)
 
         possible = state.getAllPossibleActions();
 
-        #while true:
-        cur = root;
-        while span(root,state)==MORE:
-            pass
+        while True:
+            try:
+                span(root,state)
+            except UseUp:
+                break
+
         children = root[4]
         assert(not children is None)
         idx=-1
         visit_cnt = -1
         for i in range(len(children)):
             if not children[i] is None and children[i][1]>visit_cnt:
-                print children[i][3]
                 idx,visit_cnt = i, children[i][1]
         assert(idx!=-1)
         return children[idx][3]
