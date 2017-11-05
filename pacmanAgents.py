@@ -90,8 +90,44 @@ class HillClimberAgent(Agent):
         return;
 
     # GetAction Function: Called with every frame
+
     def getAction(self, state):
+        def move(state,action):
+            if state.isWin():
+                raise Win()
+            if state.isLose():
+                raise Lose()
+            state = state.generatePacmanSuccessor(action)
+            if state is None :
+                raise UseUp()
+            else:
+                return state
+        def evaluateSeq(state, seq):
+            try:
+                for action in seq:
+                    state = move(state,action)
+            except (Win,Lose):
+                return scoreEvaluation(state)
+            return scoreEvaluation(state)
+        possible = state.getAllPossibleActions();
+
+        randomAction=lambda: possible[random.randint(0,len(possible)-1)]
         seq=randomSeq(state)
+        oldScore = evaluateSeq(state,seq)
+        try :
+            while True:
+                tmp = seq[:]
+                for i in range(5):
+                    if random.uniform(0.0,1.0) > 0.5:
+                        continue
+                    tmp[i]=randomAction()
+                #oldScore = scoreEvaluation(state)
+                newScore = evaluateSeq(state,tmp)
+                if newScore > oldScore:
+                    tmp,seq=seq,tmp
+                    oldScore = newScore
+        except UseUp:
+            return seq[0]
         return Directions.STOP
 
 
@@ -187,7 +223,7 @@ class MCTSAgent(Agent):
         def UCB (node):
             assert(not node is None)
             assert (root[1]!=0)
-            return node[0]/node[1] + 2 * math.sqrt(math.log(root[1]) / node[1])
+            return node[0]/node[1] + 1.0 * math.sqrt(math.log(root[1]) / node[1])
 
 
         def move(state,action):
